@@ -14,7 +14,3 @@ Plugins
 *.suo
 *.xcodeproj
 *.xcworkspace
-
-Content/__ExternalActors__/
-
-Content/__ExternalObjects__/
