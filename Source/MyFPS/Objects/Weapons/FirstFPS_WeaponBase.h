@@ -1,0 +1,67 @@
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "MyFPS/Bullets/FirstFPS_BulletBase.h"
+#include "MyFPS/Objects/FirstFPS_HandActorBase.h"
+#include "FirstFPS_WeaponBase.generated.h"
+
+UCLASS()
+class MYFPS_API AFirstFPS_WeaponBase : public AFirstFPS_HandActorBase
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere)
+	USkeletalMeshComponent* SkeletalMesh;
+public:
+	AFirstFPS_WeaponBase();
+	virtual void BeginPlay() override;
+protected:
+	UPROPERTY(EditAnywhere)
+	FVector ProjectileOffset;
+	UPROPERTY(Replicated)
+	ACharacter* FirstPersonCharacterReference;
+	bool bCanBeShoot;
+	UPROPERTY(Replicated)
+	bool bReloadNow;
+	UPROPERTY(EditAnywhere)
+	int32 ClipSize;
+	UPROPERTY(Replicated)
+	int32 CartridgesInClip;
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AFirstFPS_BulletBase> AmmunitionType;
+	UPROPERTY(EditAnywhere)
+	float ReloadTime;
+	UPROPERTY(EditAnywhere)
+	float RateFire;
+	UPROPERTY(EditAnywhere)
+	USoundBase* ShootSound;
+public:
+	TSubclassOf<AFirstFPS_BulletBase> GetAmmunitionType();
+	int32 GetCartridgesInClip();
+	UFUNCTION()
+	void SwitchReload();
+	void ReloadWeapon();
+	void ChangeAmmoFromPlayer(int32 NewAmmo, int32 NewCartigesInClip);
+	UFUNCTION()
+	void CanBeFire();
+	void SwitchFireRate();
+	TMap<TSubclassOf<AFirstFPS_BulletBase>, int32> GetAmmunition();
+
+	UFUNCTION()
+	void OnFireProjectile();
+	void BindFire();
+	void UnBindFire();
+	UFUNCTION(NetMulticast,Reliable)
+	void MulticastUpdateCartrigesInClipInfo(int32 NewAmmo);
+	UFUNCTION(NetMulticast,Reliable)
+	void MulticastUpdateAmmunitionInfo(int32 Ammo);
+	UFUNCTION(Server,Unreliable)
+	void ServerPlaySound(FVector Location);
+	UFUNCTION(NetMulticast,Unreliable)
+	void MulticastPlaySound(FVector Location);
+	virtual void Reload_Implementation() override;
+	virtual void TakeUp_Implementation(ACharacter* Character) override;
+	virtual void Drop_Implementation(ACharacter* Character) override;
+};
