@@ -27,13 +27,13 @@ void AFirstFPS_WeaponBase::BeginPlay()
 void AFirstFPS_WeaponBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	//if(bVisibilityReloadInfo)
-	// {
-	// 	if(AFirstFPS_Character * LCharacter = Cast<AFirstFPS_Character>(FirstPersonCharacterReference))
-	// 	{
-	// 		Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetRelaodTimerActiveSlot(TimerReloadСlip);
-	// 	}
-	// }
+	if(bVisibilityReloadInfo)
+	 {
+	 	if(AFirstFPS_Character * LCharacter = Cast<AFirstFPS_Character>(FirstPersonCharacterReference))
+	 	{
+	 		Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(true,TimerReloadСlip);
+	 	}
+	 }
 }
 
 TSubclassOf<AFirstFPS_BulletBase> AFirstFPS_WeaponBase::GetAmmunitionType()
@@ -62,7 +62,10 @@ void AFirstFPS_WeaponBase::SwitchReload()
 		{
 			Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetAmmoInActiveSlot(0);
 		}
-		Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(false);
+		FTimerHandle ZeroTaimer;
+		GetWorldTimerManager().ClearTimer(ZeroTaimer);
+
+		Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(false,ZeroTaimer);
 
 	}
 }
@@ -133,9 +136,10 @@ void AFirstFPS_WeaponBase::CanBeFire()
 			{
 				if (!CartridgesInClip && GetAmmunition().Contains(AmmunitionType))
 				{
-					Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(true);
 					GetWorldTimerManager().SetTimer(TimerReloadСlip, this, &AFirstFPS_WeaponBase::SwitchReload,
 						ReloadTime,false);
+					//Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(true,TimerReloadСlip);
+					bVisibilityReloadInfo = true;
 					SwitchReload();
 				}
 				else
@@ -228,9 +232,10 @@ void AFirstFPS_WeaponBase::Reload_Implementation()
 		else
 		{
 			GetWorldTimerManager().SetTimer(TimerReloadСlip, this, &AFirstFPS_WeaponBase::SwitchReload, ReloadTime, false);
-			Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(true);
+			//Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(true,TimerReloadСlip);
 
-			
+			bVisibilityReloadInfo = true;
+
 			SwitchReload();
 		}
 	}
@@ -263,8 +268,10 @@ void AFirstFPS_WeaponBase::Drop_Implementation(ACharacter* Character)
 	Super::Drop_Implementation(Character);
 	UnBindFire();
 	InterruptionReload();
-	
-	Cast<AFirstFPS_Character>(Character)->ServerSwitchVisibilityReloadWidget(false);
+	FTimerHandle ZeroTaimer;
+	GetWorldTimerManager().ClearTimer(ZeroTaimer);
+	Cast<AFirstFPS_Character>(Character)->ServerSwitchVisibilityReloadWidget(false,ZeroTaimer);
+	Cast<AFirstFPS_Character>(Character)->MulticastSwitchVisibilityReloadWidget(false,0,1);
 	Cast<AFirstFPS_Character>(Character)->SetAmmoInActiveSlot(-1);
 	Cast<AFirstFPS_Character>(Character)->SetCartridgesInActiveSlot(-1);
 	FirstPersonCharacterReference = nullptr;

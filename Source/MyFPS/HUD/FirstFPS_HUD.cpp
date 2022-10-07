@@ -114,7 +114,7 @@ void AFirstFPS_HUD::SwitchVisibilityCheatWidget(bool bNVisibility)
 	}
 }
 
-void AFirstFPS_HUD::VisibilityReloadWidget(bool bNVisibility)
+void AFirstFPS_HUD::VisibilityReloadWidget(bool bNVisibility,float RemaningTime, float RateTime)
 {
 	if(bNVisibility)
 	{
@@ -126,12 +126,20 @@ void AFirstFPS_HUD::VisibilityReloadWidget(bool bNVisibility)
 		// }
 		// FTimerHandle TimerHidden;
 		// GetWorld()->GetTimerManager().SetTimer(TimerHidden,this,&AFirstFPS_HUD::HiddenReloadInfo,GetWorldTimerManager().GetTimerRemaining(NTimer),false);
-
-		ReloadWidget->AddToViewport();
+		//FTimespan Timespan = UKismetMathLibrary::FromSeconds(GetWorldTimerManager().GetTimerRemaining(TimerReload));
+		ReloadWidget->SetReloadInfo(RemaningTime, RateTime);
+		if(!ReloadInViewport)
+		{
+			//ReloadWidget.CacheW
+			ReloadWidget->AddToViewport();
+			ReloadInViewport = true;
+		}
 	}
 	else
 	{
+		
 		ReloadWidget->RemoveFromParent();
+		ReloadInViewport = false;
 	}
 
 }

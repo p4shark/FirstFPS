@@ -5,14 +5,10 @@
 
 #include "Kismet/KismetMathLibrary.h"
 
-void UFirstFPS_ReloadInfoWidget::SetReloadInfo(FTimerHandle Timer)
+void UFirstFPS_ReloadInfoWidget::SetReloadInfo(float RemaningTime, float RateTime)
 {
-	if(GetWorld()->GetTimerManager().GetTimerRemaining(Timer)!=-1)
-	{
-		FTimespan Timespan = UKismetMathLibrary::FromSeconds(GetWorld()->GetTimerManager().GetTimerRemaining(Timer));
+		FTimespan Timespan = UKismetMathLibrary::FromSeconds(RemaningTime);
 		InfoAboutReload->SetText(FText::Format(FTextFormat::FromString("Reloading {0}.{1}"),Timespan.GetSeconds(),Timespan.GetFractionMilli()));
-		ProgressReload->SetPercent(GetWorld()->GetTimerManager().GetTimerRemaining(Timer) / GetWorld()->GetTimerManager().GetTimerRate(Timer));
+		ProgressReload->SetPercent(RemaningTime/ RateTime);
 
-	}
-	
 }

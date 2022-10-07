@@ -45,7 +45,7 @@ protected:
 	TSubclassOf<UUserWidget> ReloadWidgetClass;
 	UPROPERTY()
 	UFirstFPS_ReloadInfoWidget* ReloadWidget;
-	bool ReloadInViewport;
+	bool ReloadInViewport = false;
 	
 	UPROPERTY()
 	AFirstFPS_Character* LCharacter;
@@ -62,7 +62,7 @@ protected:
 	UFUNCTION()
 	void SwitchVisibilityCheatWidget(bool bNVisibility);
 	UFUNCTION()
-	void VisibilityReloadWidget(bool bNVisibility);
+	void VisibilityReloadWidget(bool bNVisibility,float RemaningTime, float RateTime);
 	void RebindCharacter(APawn* NewPawn);
 	void HiddenReloadInfo();
 

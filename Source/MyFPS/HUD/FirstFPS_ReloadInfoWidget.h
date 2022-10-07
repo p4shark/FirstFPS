@@ -18,7 +18,7 @@ class MYFPS_API UFirstFPS_ReloadInfoWidget : public UUserWidget
 
 	GENERATED_BODY()
 public:
-	void SetReloadInfo(FTimerHandle Timer);
+	void SetReloadInfo(float RemaningTime, float RateTime);
 	
 	UPROPERTY(BlueprintReadWrite, meta=(BindWidget))
 	UTextBlock* InfoAboutReload ;

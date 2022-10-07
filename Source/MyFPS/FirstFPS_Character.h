@@ -20,7 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangedHealth, int32, NewHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangeMaxHealth, int32, NewHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangedCartridgesInClip, int32, NewCartridges);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangedAmmoInActiveSlot, int32, NewCartridges);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRequesterVisibilityReloadTime,bool, bVisibility);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FRequesterVisibilityReloadTime,bool, bVisibility,float, RemaningTime, float, RateTime);
 
 UCLASS()
 class MYFPS_API AFirstFPS_Character : public ACharacter, public IFirstFPS_HitInterface
@@ -55,8 +55,6 @@ protected:
 	int32 AmmoInActiveSlot;
 	UPROPERTY(ReplicatedUsing=OneRep_CartridgesInActiveSlot)
 	int32 CartrigesInActiveSlot;
-	UPROPERTY(ReplicatedUsing=OneRep_ReloadTime)
-	FTimerHandle RelaodTimerActiveSlot;
 
 	UPROPERTY(Replicated)
 	bool bCanBeMovement = true;
@@ -100,9 +98,9 @@ public:
 	UFUNCTION(NetMulticast,Unreliable)
 	void MulticastSwitchVisibilityCheatWidget();
 	UFUNCTION(Server,Unreliable)
-	void ServerSwitchVisibilityReloadWidget(bool bNVisibility);
+	void ServerSwitchVisibilityReloadWidget(bool bNVisibility, FTimerHandle TimerReload);
 	UFUNCTION(NetMulticast,Unreliable)
-	void MulticastSwitchVisibilityReloadWidget(bool bNVisibility);
+	void MulticastSwitchVisibilityReloadWidget(bool bNVisibility, float RemaningTime, float RateTime);
 	UFUNCTION(Server,Unreliable,BlueprintCallable)
 	void ServerSpawnActor(TSubclassOf<AActor> ClassObject);
 	UFUNCTION(BlueprintCallable)
@@ -124,9 +122,7 @@ public:
 	void OneRep_AmmoInActiveSlot();
 	UFUNCTION()
 	void OneRep_CartridgesInActiveSlot();
-	UFUNCTION()
-	void OneRep_ReloadTime();
-	
+
 	UFUNCTION(Server,Unreliable)
 	void CorrectHealth(int32 Damage);
 	UFUNCTION(BlueprintCallable)
@@ -152,9 +148,6 @@ public:
 	void AddItemFromAmmunition(TSubclassOf<AFirstFPS_BulletBase> Key, int32 value);
 	void SetCartridgesInActiveSlot(int32 NewCartriges);
 	void SetInventorySlot(AFirstFPS_HandActorBase* Actor);
-	UFUNCTION(Server,Unreliable)
-	void ServerRelaodTimerActiveSlot(FTimerHandle NRelaodTimerActiveSlot);
-	void SetRelaodTimerActiveSlot(FTimerHandle NRelaodTimerActiveSlot);
 	TMap<TSubclassOf<AFirstFPS_BulletBase>, int32> GetAmmunition();
 
 	
