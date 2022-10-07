@@ -44,7 +44,7 @@ void AFirstFPS_Character::BeginPlay()
 		MaxHealth = UKismetMathLibrary::RandomIntegerInRange(50, 100);
 		Health = UKismetMathLibrary::RandomIntegerInRange(50, MaxHealth);
 		AmmoInActiveSlot = -1;
-		CartridgesInActiveSlot = -1;
+		CartrigesInActiveSlot = -1;
 	}
 	OneRep_CartridgesInActiveSlot();
 	OneRep_MaxHealth();
@@ -184,17 +184,24 @@ void AFirstFPS_Character::MulticastUpdateHUD_Implementation()
 
 void AFirstFPS_Character::ServerReload_Implementation()
 {
-	if (GetActorInPlayerHand()->Implements<UFirstFPS_InteractInterface>())
+	if(IsValid(GetActorInPlayerHand()))
 	{
-		IFirstFPS_InteractInterface::Execute_Reload(GetActorInPlayerHand());
+		if (GetActorInPlayerHand()->Implements<UFirstFPS_InteractInterface>())
+		{
+			IFirstFPS_InteractInterface::Execute_Reload(GetActorInPlayerHand());
+		}
 	}
 }
 
 void AFirstFPS_Character::ServerSwitchVisibilityCheatWidget_Implementation()
 {
 	bCanBeMovement = !bCanBeMovement;
-	GetLocalViewingPlayerController()->SetShowMouseCursor(!bCanBeMovement);
-	FChangedVisibilityCheatMenu.Broadcast(!bCanBeMovement);
+	if(IsValid(GetController()))
+	{
+		Cast<APlayerController>(GetController())->SetShowMouseCursor(!bCanBeMovement);
+		FChangedVisibilityCheatMenu.Broadcast(!bCanBeMovement);
+	}
+	MulticastSwitchVisibilityCheatWidget();
 }
 
 void AFirstFPS_Character::ServerSpawnActor_Implementation(TSubclassOf<AActor> ClassObject)
@@ -211,6 +218,26 @@ void AFirstFPS_Character::ServerSpawnActor_Implementation(TSubclassOf<AActor> Cl
 
 }
 
+
+void AFirstFPS_Character::MulticastSwitchVisibilityCheatWidget_Implementation()
+{
+	if(IsValid(GetController()))
+	{
+		Cast<APlayerController>(GetController())->SetShowMouseCursor(!bCanBeMovement);
+		FChangedVisibilityCheatMenu.Broadcast(!bCanBeMovement);
+	}
+}
+
+void AFirstFPS_Character::ServerSwitchVisibilityReloadWidget_Implementation(bool bNVisibility)
+{
+	FRequesterVisibilityReloadTime.Broadcast(bNVisibility);
+	MulticastSwitchVisibilityReloadWidget(bNVisibility);
+}
+
+void AFirstFPS_Character::MulticastSwitchVisibilityReloadWidget_Implementation(bool bNVisibility)
+{
+	FRequesterVisibilityReloadTime.Broadcast(bNVisibility);
+}
 
 void AFirstFPS_Character::ChangeLevel(FName MapName)
 {
@@ -280,28 +307,28 @@ void AFirstFPS_Character::OneRep_ActiveSlot()
 			                               "GripPoint");
 			if (AFirstFPS_WeaponBase* WeaponInHand = Cast<AFirstFPS_WeaponBase>(ActorInHand))
 			{
+				WeaponInHand->InterruptionReload();
+				WeaponInHand->BindFire();
 				const TSubclassOf<AFirstFPS_BulletBase> Key = WeaponInHand->GetAmmunitionType();
 
 				if (const int* Value = Ammunition.Find(Key))
 				{
 					AmmoInActiveSlot = *Value;
 					OneRep_AmmoInActiveSlot();
-					CartridgesInActiveSlot = WeaponInHand->GetCartridgesInClip();
-					OneRep_CartridgesInActiveSlot();
 				}
 				else
 				{
 					AmmoInActiveSlot = 0;
 					OneRep_AmmoInActiveSlot();
-					CartridgesInActiveSlot = 0;
-					OneRep_CartridgesInActiveSlot();
 				}
+				CartrigesInActiveSlot = WeaponInHand->GetCartridgesInClip();
+				OneRep_CartridgesInActiveSlot();
 			}
 			else
 			{
 				AmmoInActiveSlot = -1;
 				OneRep_AmmoInActiveSlot();
-				CartridgesInActiveSlot = -1;
+				CartrigesInActiveSlot = -1;
 				OneRep_CartridgesInActiveSlot();
 			}
 		}
@@ -309,7 +336,7 @@ void AFirstFPS_Character::OneRep_ActiveSlot()
 		{
 			AmmoInActiveSlot = -1;
 			OneRep_AmmoInActiveSlot();
-			CartridgesInActiveSlot = -1;
+			CartrigesInActiveSlot = -1;
 			OneRep_CartridgesInActiveSlot();
 		}
 	}
@@ -335,7 +362,22 @@ void AFirstFPS_Character::OneRep_AmmoInActiveSlot()
 
 void AFirstFPS_Character::OneRep_CartridgesInActiveSlot()
 {
-	FChangedCartridgesInClip.Broadcast(CartridgesInActiveSlot);
+	FChangedCartridgesInClip.Broadcast(CartrigesInActiveSlot);
+}
+
+void AFirstFPS_Character::OneRep_ReloadTime()
+{
+	//Zaglushka
+	FTimerHandle T;
+	if(GetWorldTimerManager().GetTimerRemaining(RelaodTimerActiveSlot)!=0)
+	{
+		ServerSwitchVisibilityReloadWidget(true);
+	}
+	else
+	{
+		ServerSwitchVisibilityReloadWidget(false);
+
+	}
 }
 
 void AFirstFPS_Character::CorrectHealth_Implementation(int32 Damage)
@@ -379,7 +421,11 @@ void AFirstFPS_Character::HideToInventory()
 		                              ETeleportType::None);
 		if (AFirstFPS_WeaponBase* WeaponInHand = Cast<AFirstFPS_WeaponBase>(ActorInHand))
 		{
+			FTimerHandle ZeroTaimer;
+			GetWorldTimerManager().ClearTimer(ZeroTaimer);
 			WeaponInHand->UnBindFire();
+			WeaponInHand->InterruptionReload();
+			ServerSwitchVisibilityReloadWidget(false);
 		}
 	}
 }
@@ -434,7 +480,7 @@ int32 AFirstFPS_Character::GetAmmoInActiveSlot() const
 
 int32 AFirstFPS_Character::GetCartridgesInActiveSlot() const
 {
-	return CartridgesInActiveSlot;
+	return CartrigesInActiveSlot;
 }
 
 int32 AFirstFPS_Character::GetMaxHealth() const
@@ -465,13 +511,25 @@ void AFirstFPS_Character::AddItemFromAmmunition(TSubclassOf<AFirstFPS_BulletBase
 
 void AFirstFPS_Character::SetCartridgesInActiveSlot(int32 NewCartriges)
 {
-	CartridgesInActiveSlot = NewCartriges;
+	CartrigesInActiveSlot = NewCartriges;
 	OneRep_CartridgesInActiveSlot();
 }
 
 void AFirstFPS_Character::SetInventorySlot(AFirstFPS_HandActorBase* Actor)
 {
 	Inventory[ActiveSlot] = Actor;
+}
+
+void AFirstFPS_Character::SetRelaodTimerActiveSlot(FTimerHandle NRelaodTimerActiveSlot)
+{
+	ServerRelaodTimerActiveSlot(NRelaodTimerActiveSlot);
+}
+
+void AFirstFPS_Character::ServerRelaodTimerActiveSlot_Implementation(FTimerHandle NRelaodTimerActiveSlot)
+{
+	RelaodTimerActiveSlot = NRelaodTimerActiveSlot;
+	OneRep_ReloadTime();
+
 }
 
 TMap<TSubclassOf<AFirstFPS_BulletBase>, int32> AFirstFPS_Character::GetAmmunition()
@@ -485,9 +543,10 @@ void AFirstFPS_Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(AFirstFPS_Character, Health);
 	DOREPLIFETIME(AFirstFPS_Character, MaxHealth);
 	DOREPLIFETIME(AFirstFPS_Character, AmmoInActiveSlot);
-	DOREPLIFETIME(AFirstFPS_Character, CartridgesInActiveSlot);
+	DOREPLIFETIME(AFirstFPS_Character, CartrigesInActiveSlot);
 	DOREPLIFETIME(AFirstFPS_Character, ActiveSlot);
 	DOREPLIFETIME(AFirstFPS_Character, bDead);
 	DOREPLIFETIME(AFirstFPS_Character, bCanBeMovement);
 	DOREPLIFETIME(AFirstFPS_Character, Inventory);
+	DOREPLIFETIME(AFirstFPS_Character, RelaodTimerActiveSlot);
 }

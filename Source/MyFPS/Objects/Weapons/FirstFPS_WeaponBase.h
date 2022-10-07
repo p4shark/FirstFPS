@@ -3,10 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
 #include "MyFPS/Bullets/FirstFPS_BulletBase.h"
 #include "MyFPS/Objects/FirstFPS_HandActorBase.h"
 #include "FirstFPS_WeaponBase.generated.h"
+
+
 
 UCLASS()
 class MYFPS_API AFirstFPS_WeaponBase : public AFirstFPS_HandActorBase
@@ -17,6 +18,7 @@ class MYFPS_API AFirstFPS_WeaponBase : public AFirstFPS_HandActorBase
 public:
 	AFirstFPS_WeaponBase();
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 protected:
 	UPROPERTY(EditAnywhere)
 	FVector ProjectileOffset;
@@ -37,6 +39,10 @@ protected:
 	float RateFire;
 	UPROPERTY(EditAnywhere)
 	USoundBase* ShootSound;
+	bool bReloadInterruption = false;
+	FTimerHandle TimerReloadСlip;
+	UPROPERTY(Replicated)
+	bool bVisibilityReloadInfo;
 public:
 	TSubclassOf<AFirstFPS_BulletBase> GetAmmunitionType();
 	int32 GetCartridgesInClip();
@@ -48,7 +54,9 @@ public:
 	void CanBeFire();
 	void SwitchFireRate();
 	TMap<TSubclassOf<AFirstFPS_BulletBase>, int32> GetAmmunition();
-
+	void InterruptionReload();
+	void SwitchVisibilityReloadInfo();
+	
 	UFUNCTION()
 	void OnFireProjectile();
 	void BindFire();
@@ -61,6 +69,10 @@ public:
 	void ServerPlaySound(FVector Location);
 	UFUNCTION(NetMulticast,Unreliable)
 	void MulticastPlaySound(FVector Location);
+	UFUNCTION(Server,Unreliable)
+	void ServerReloadInfo(ACharacter* Character);
+	UFUNCTION(NetMulticast,Unreliable)
+	void MulticastReloadInfo(ACharacter* Character);
 	virtual void Reload_Implementation() override;
 	virtual void TakeUp_Implementation(ACharacter* Character) override;
 	virtual void Drop_Implementation(ACharacter* Character) override;

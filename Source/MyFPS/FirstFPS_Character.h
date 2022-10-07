@@ -20,6 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangedHealth, int32, NewHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangeMaxHealth, int32, NewHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangedCartridgesInClip, int32, NewCartridges);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FChangedAmmoInActiveSlot, int32, NewCartridges);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRequesterVisibilityReloadTime,bool, bVisibility);
 
 UCLASS()
 class MYFPS_API AFirstFPS_Character : public ACharacter, public IFirstFPS_HitInterface
@@ -53,7 +54,10 @@ protected:
 	UPROPERTY(ReplicatedUsing=OneRep_AmmoInActiveSlot)
 	int32 AmmoInActiveSlot;
 	UPROPERTY(ReplicatedUsing=OneRep_CartridgesInActiveSlot)
-	int32 CartridgesInActiveSlot;
+	int32 CartrigesInActiveSlot;
+	UPROPERTY(ReplicatedUsing=OneRep_ReloadTime)
+	FTimerHandle RelaodTimerActiveSlot;
+
 	UPROPERTY(Replicated)
 	bool bCanBeMovement = true;
 	UPROPERTY()
@@ -61,6 +65,8 @@ protected:
 
 	
 public:
+
+
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	void LookRightLeft(float axisvalue);
@@ -91,6 +97,12 @@ public:
 	void ServerReload();
 	UFUNCTION(Server,Unreliable)
 	void ServerSwitchVisibilityCheatWidget();
+	UFUNCTION(NetMulticast,Unreliable)
+	void MulticastSwitchVisibilityCheatWidget();
+	UFUNCTION(Server,Unreliable)
+	void ServerSwitchVisibilityReloadWidget(bool bNVisibility);
+	UFUNCTION(NetMulticast,Unreliable)
+	void MulticastSwitchVisibilityReloadWidget(bool bNVisibility);
 	UFUNCTION(Server,Unreliable,BlueprintCallable)
 	void ServerSpawnActor(TSubclassOf<AActor> ClassObject);
 	UFUNCTION(BlueprintCallable)
@@ -112,6 +124,8 @@ public:
 	void OneRep_AmmoInActiveSlot();
 	UFUNCTION()
 	void OneRep_CartridgesInActiveSlot();
+	UFUNCTION()
+	void OneRep_ReloadTime();
 	
 	UFUNCTION(Server,Unreliable)
 	void CorrectHealth(int32 Damage);
@@ -138,7 +152,12 @@ public:
 	void AddItemFromAmmunition(TSubclassOf<AFirstFPS_BulletBase> Key, int32 value);
 	void SetCartridgesInActiveSlot(int32 NewCartriges);
 	void SetInventorySlot(AFirstFPS_HandActorBase* Actor);
+	UFUNCTION(Server,Unreliable)
+	void ServerRelaodTimerActiveSlot(FTimerHandle NRelaodTimerActiveSlot);
+	void SetRelaodTimerActiveSlot(FTimerHandle NRelaodTimerActiveSlot);
 	TMap<TSubclassOf<AFirstFPS_BulletBase>, int32> GetAmmunition();
+
+	
 	UPROPERTY(BlueprintAssignable)
 	FUsedItem FUsedItem;
 	UPROPERTY(BlueprintAssignable)
@@ -153,4 +172,6 @@ public:
 	FChangedCartridgesInClip FChangedCartridgesInClip;
 	UPROPERTY(BlueprintAssignable)
 	FChangedAmmoInActiveSlot FChangedAmmoInActiveSlot;
+	UPROPERTY(BlueprintAssignable)
+	FRequesterVisibilityReloadTime FRequesterVisibilityReloadTime;
 };

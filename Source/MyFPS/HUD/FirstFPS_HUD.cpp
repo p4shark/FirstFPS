@@ -8,7 +8,9 @@
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/GameSession.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "MyFPS/FirstFPS_Character.h"
+#include "Net/UnrealNetwork.h"
 
 
 // Sets default values
@@ -16,16 +18,18 @@ AFirstFPS_HUD::AFirstFPS_HUD()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	this->SetActorTickEnabled(true); 
 }
 
 // Called when the game starts or when spawned
 void AFirstFPS_HUD::BeginPlay()
 {
 	//Super::BeginPlay();
-	
-		if(Cast<AFirstFPS_Character>(UGameplayStatics::GetPlayerCharacter(GetWorld(),0)))
+
+		
+		if(Cast<AFirstFPS_Character>(GetOwningPlayerController()->GetCharacter()))
 		{
-			LCharacter = Cast<AFirstFPS_Character>(UGameplayStatics::GetPlayerCharacter(GetWorld(),0));
+			LCharacter = Cast<AFirstFPS_Character>(GetOwningPlayerController()->GetCharacter());
 			GetOwningPlayerController()->OnPossessedPawnChanged.AddDynamic(this,&AFirstFPS_HUD::ChangePawn);
 			if(IsValid(HealthWidgetClass))
 			{
@@ -51,10 +55,19 @@ void AFirstFPS_HUD::BeginPlay()
 			{
 				MapWidget = Cast<UFirstFPS_MapWidget>(CreateWidget(GetWorld(),MapWidgetClass));
 			}
+			if(IsValid(ReloadWidgetClass))
+			{
+				ReloadWidget = Cast<UFirstFPS_ReloadInfoWidget>(CreateWidget(GetWorld(),ReloadWidgetClass));
+			}
 			
 			RebindCharacter(LCharacter);
 		}
 	
+}
+
+void AFirstFPS_HUD::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
 }
 
 
@@ -92,6 +105,7 @@ void AFirstFPS_HUD::SwitchVisibilityCheatWidget(bool bNVisibility)
 	{
 		CheatSpawnWidget->AddToViewport();
 		MapWidget->AddToViewport();
+		
 	}
 	else
 	{
@@ -99,6 +113,30 @@ void AFirstFPS_HUD::SwitchVisibilityCheatWidget(bool bNVisibility)
 		MapWidget->RemoveFromParent();
 	}
 }
+
+void AFirstFPS_HUD::VisibilityReloadWidget(bool bNVisibility)
+{
+	if(bNVisibility)
+	{
+		// if(!ReloadInViewport)
+		// {
+		// 	ReloadWidget->AddToViewport();
+		// 	ReloadWidget->SetReloadInfo(NTimer);
+		// 	ReloadInViewport = true;
+		// }
+		// FTimerHandle TimerHidden;
+		// GetWorld()->GetTimerManager().SetTimer(TimerHidden,this,&AFirstFPS_HUD::HiddenReloadInfo,GetWorldTimerManager().GetTimerRemaining(NTimer),false);
+
+		ReloadWidget->AddToViewport();
+	}
+	else
+	{
+		ReloadWidget->RemoveFromParent();
+	}
+
+}
+
+
 void AFirstFPS_HUD::RebindCharacter(APawn* NewPawn)
 {
 	if(LCharacter != Cast<AFirstFPS_Character>(NewPawn))
@@ -108,12 +146,18 @@ void AFirstFPS_HUD::RebindCharacter(APawn* NewPawn)
 	LCharacter->FChangeMaxHealth.AddDynamic(this, &AFirstFPS_HUD::InitializeMaxHealth);
 	LCharacter->FChangedVisibilityCheatMenu.AddDynamic(this,&AFirstFPS_HUD::SwitchVisibilityCheatWidget);
 	LCharacter->FChangedHealth.AddDynamic(this,&AFirstFPS_HUD::CorrectHealth);
-	LCharacter->FChangedAmmoInActiveSlot.AddDynamic(this,&AFirstFPS_HUD::AFirstFPS_HUD::CorrectAllAmmo);
-	LCharacter->FChangedCartridgesInClip.AddDynamic(this,&AFirstFPS_HUD::AFirstFPS_HUD::CorrectCartrigesInClip);
-	
+	LCharacter->FChangedAmmoInActiveSlot.AddDynamic(this,&AFirstFPS_HUD::CorrectAllAmmo);
+	LCharacter->FChangedCartridgesInClip.AddDynamic(this,&AFirstFPS_HUD::CorrectCartrigesInClip);
+	LCharacter->FRequesterVisibilityReloadTime.AddDynamic(this,&AFirstFPS_HUD::VisibilityReloadWidget);
 	CorrectHealth(LCharacter->GetHealth());
 	InitializeMaxHealth(LCharacter->GetMaxHealth());
 	CorrectAllAmmo(LCharacter->GetAmmoInActiveSlot());
 	CorrectCartrigesInClip(LCharacter->GetCartridgesInActiveSlot());
+}
+
+void AFirstFPS_HUD::HiddenReloadInfo()
+{
+	
+	ReloadInViewport = false;
 }
 

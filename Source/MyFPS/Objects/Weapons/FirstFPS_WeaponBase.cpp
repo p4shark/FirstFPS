@@ -3,7 +3,6 @@
 
 #include "FirstFPS_WeaponBase.h"
 
-#include "../../../../Plugins/Developer/RiderLink/Source/RD/thirdparty/clsocket/src/StatTimer.h"
 #include "AI/NavigationSystemBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -25,6 +24,18 @@ void AFirstFPS_WeaponBase::BeginPlay()
 	Super::BeginPlay();
 }
 
+void AFirstFPS_WeaponBase::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	//if(bVisibilityReloadInfo)
+	// {
+	// 	if(AFirstFPS_Character * LCharacter = Cast<AFirstFPS_Character>(FirstPersonCharacterReference))
+	// 	{
+	// 		Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetRelaodTimerActiveSlot(TimerReloadСlip);
+	// 	}
+	// }
+}
+
 TSubclassOf<AFirstFPS_BulletBase> AFirstFPS_WeaponBase::GetAmmunitionType()
 {
 	return AmmunitionType;
@@ -41,39 +52,51 @@ void AFirstFPS_WeaponBase::SwitchReload()
 	if (!bReloadNow)
 	{
 		ReloadWeapon();
+		bVisibilityReloadInfo = false;
+		Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetCartridgesInActiveSlot(CartridgesInClip);
+		if (GetAmmunition().Contains(AmmunitionType))
+		{
+			Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetAmmoInActiveSlot(*GetAmmunition().Find(AmmunitionType));
+		}
+		else
+		{
+			Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetAmmoInActiveSlot(0);
+		}
+		Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(false);
+
 	}
 }
 
 void AFirstFPS_WeaponBase::ReloadWeapon()
 {
-	int32 LocalAmmoClip;
-	if (CartridgesInClip != 0)
-	{
-		LocalAmmoClip = *GetAmmunition().Find(AmmunitionType) - (ClipSize - CartridgesInClip);
-		if (LocalAmmoClip > 0)
+		int32 LocalAmmoClip;
+		if (CartridgesInClip != 0)
 		{
-			CartridgesInClip = ClipSize;
-			ChangeAmmoFromPlayer(LocalAmmoClip, CartridgesInClip);
+			LocalAmmoClip = *GetAmmunition().Find(AmmunitionType) - (ClipSize - CartridgesInClip);
+			if (LocalAmmoClip > 0)
+			{
+				CartridgesInClip = ClipSize;
+				ChangeAmmoFromPlayer(LocalAmmoClip, CartridgesInClip);
+			}
+			else
+			{
+				CartridgesInClip = *GetAmmunition().Find(AmmunitionType) + CartridgesInClip;
+				ChangeAmmoFromPlayer(0, CartridgesInClip);
+			}
 		}
 		else
 		{
-			CartridgesInClip = *GetAmmunition().Find(AmmunitionType) + CartridgesInClip;
-			ChangeAmmoFromPlayer(0, CartridgesInClip);
+			if ((*GetAmmunition().Find(AmmunitionType) - ClipSize) > 0)
+			{
+				CartridgesInClip = ClipSize;
+				ChangeAmmoFromPlayer(*GetAmmunition().Find(AmmunitionType) - ClipSize, CartridgesInClip);
+			}
+			else
+			{
+				CartridgesInClip = *GetAmmunition().Find(AmmunitionType);
+				ChangeAmmoFromPlayer(0, CartridgesInClip);
+			}
 		}
-	}
-	else
-	{
-		if ((*GetAmmunition().Find(AmmunitionType) - ClipSize) > 0)
-		{
-			CartridgesInClip = ClipSize;
-			ChangeAmmoFromPlayer(*GetAmmunition().Find(AmmunitionType) - ClipSize, CartridgesInClip);
-		}
-		else
-		{
-			CartridgesInClip = *GetAmmunition().Find(AmmunitionType);
-			ChangeAmmoFromPlayer(0, CartridgesInClip);
-		}
-	}
 }
 
 void AFirstFPS_WeaponBase::ChangeAmmoFromPlayer(int32 NewAmmo, int32 NewCartigesInClip)
@@ -94,38 +117,41 @@ void AFirstFPS_WeaponBase::ChangeAmmoFromPlayer(int32 NewAmmo, int32 NewCartiges
 
 void AFirstFPS_WeaponBase::CanBeFire()
 {
-	if (!GetAmmunition().Contains(AmmunitionType) && (CartridgesInClip == 0))
+	if(HasAuthority())
 	{
-		//Nothing
-	}
-	else
-	{
-		if (bReloadNow)
+		if (!GetAmmunition().Contains(AmmunitionType) && (CartridgesInClip == 0))
 		{
-			//Nothing
+			//No ammo
 		}
 		else
 		{
-			if (!CartridgesInClip && GetAmmunition().Contains(AmmunitionType))
+			if (bReloadNow )
 			{
-				FTimerHandle TimerReload;
-				GetWorldTimerManager().SetTimer(TimerReload, this, &AFirstFPS_WeaponBase::SwitchReload, ReloadTime,
-				                                false);
-				SwitchReload();
+				// Reload now, wait
 			}
 			else
 			{
-				if (CartridgesInClip > 0)
+				if (!CartridgesInClip && GetAmmunition().Contains(AmmunitionType))
 				{
-					if (bCanBeShoot)
+					Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(true);
+					GetWorldTimerManager().SetTimer(TimerReloadСlip, this, &AFirstFPS_WeaponBase::SwitchReload,
+						ReloadTime,false);
+					SwitchReload();
+				}
+				else
+				{
+					if (CartridgesInClip > 0)
 					{
-						FTimerHandle TimerReload;
-						GetWorldTimerManager().SetTimer(TimerReload, this, &AFirstFPS_WeaponBase::SwitchFireRate, RateFire,
-						                                false);
-						SwitchFireRate();
-						OnFireProjectile();
-						CartridgesInClip--;
-						MulticastUpdateCartrigesInClipInfo(CartridgesInClip);
+						if (bCanBeShoot)
+						{
+							FTimerHandle TimerReload;
+							GetWorldTimerManager().SetTimer(TimerReload, this, &AFirstFPS_WeaponBase::SwitchFireRate,
+							RateFire,false);
+							SwitchFireRate();
+							OnFireProjectile();
+							CartridgesInClip--;
+							MulticastUpdateCartrigesInClipInfo(CartridgesInClip);
+						}
 					}
 				}
 			}
@@ -141,6 +167,19 @@ void AFirstFPS_WeaponBase::SwitchFireRate()
 TMap<TSubclassOf<AFirstFPS_BulletBase>, int32> AFirstFPS_WeaponBase::GetAmmunition()
 {
 	return Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->GetAmmunition();
+}
+
+void AFirstFPS_WeaponBase::InterruptionReload()
+{
+	bVisibilityReloadInfo = false;
+	GetWorldTimerManager().PauseTimer(TimerReloadСlip);
+	
+	bReloadNow = false;
+}
+
+void AFirstFPS_WeaponBase::SwitchVisibilityReloadInfo()
+{
+	bVisibilityReloadInfo = false;
 }
 
 void AFirstFPS_WeaponBase::OnFireProjectile()
@@ -164,11 +203,21 @@ void AFirstFPS_WeaponBase::UnBindFire()
 	Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->FUsedItem.RemoveDynamic(this, &AFirstFPS_WeaponBase::CanBeFire);
 }
 
+void AFirstFPS_WeaponBase::MulticastReloadInfo_Implementation(ACharacter* Character)
+{
+	
+}
+
+void AFirstFPS_WeaponBase::ServerReloadInfo_Implementation(ACharacter* Character)
+{
+	MulticastReloadInfo(Character);
+}
+
 void AFirstFPS_WeaponBase::Reload_Implementation()
 {
 	if (bReloadNow)
 	{
-		//nothing
+		
 	}
 	else
 	{
@@ -178,9 +227,10 @@ void AFirstFPS_WeaponBase::Reload_Implementation()
 		}
 		else
 		{
-			//ReloadWeapon();
-			FTimerHandle TimerReload;
-			GetWorldTimerManager().SetTimer(TimerReload, this, &AFirstFPS_WeaponBase::SwitchReload, ReloadTime, false);
+			GetWorldTimerManager().SetTimer(TimerReloadСlip, this, &AFirstFPS_WeaponBase::SwitchReload, ReloadTime, false);
+			Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->ServerSwitchVisibilityReloadWidget(true);
+
+			
 			SwitchReload();
 		}
 	}
@@ -189,11 +239,10 @@ void AFirstFPS_WeaponBase::Reload_Implementation()
 void AFirstFPS_WeaponBase::TakeUp_Implementation(ACharacter* Character)
 {
 	Super::TakeUp_Implementation(Character);
-	
+	this->SetOwner(Character);
 	if (AFirstFPS_Character* LocalCharacter = Cast<AFirstFPS_Character>(Character))
 	{
 		FirstPersonCharacterReference = LocalCharacter;
-		//LocalCharacter->FUsedItem.AddDynamic(this, &AFirstFPS_WeaponBase::CanBeFire);
 		BindFire();
 		LocalCharacter->SetCartridgesInActiveSlot(CartridgesInClip);
 		if (GetAmmunition().Contains(AmmunitionType))
@@ -204,19 +253,20 @@ void AFirstFPS_WeaponBase::TakeUp_Implementation(ACharacter* Character)
 		{
 			LocalCharacter->SetAmmoInActiveSlot(0);
 		}
-		//FirstPersonCharacterReference = LocalCharacter;
 	}
 
 }
 
 void AFirstFPS_WeaponBase::Drop_Implementation(ACharacter* Character)
 {
-	
+	this->SetOwner(nullptr);
 	Super::Drop_Implementation(Character);
 	UnBindFire();
-	//Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->FUsedItem.RemoveDynamic(this, CanBeFire);
-	Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetAmmoInActiveSlot(-1);
-	Cast<AFirstFPS_Character>(FirstPersonCharacterReference)->SetCartridgesInActiveSlot(-1);
+	InterruptionReload();
+	
+	Cast<AFirstFPS_Character>(Character)->ServerSwitchVisibilityReloadWidget(false);
+	Cast<AFirstFPS_Character>(Character)->SetAmmoInActiveSlot(-1);
+	Cast<AFirstFPS_Character>(Character)->SetCartridgesInActiveSlot(-1);
 	FirstPersonCharacterReference = nullptr;
 
 }
@@ -247,4 +297,5 @@ void AFirstFPS_WeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	DOREPLIFETIME(AFirstFPS_WeaponBase, FirstPersonCharacterReference);
 	DOREPLIFETIME(AFirstFPS_WeaponBase, bReloadNow);
 	DOREPLIFETIME(AFirstFPS_WeaponBase, CartridgesInClip);
+	DOREPLIFETIME(AFirstFPS_WeaponBase, bVisibilityReloadInfo);
 }

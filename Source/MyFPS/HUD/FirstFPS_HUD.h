@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "FirstFPS_AmmoWidget.h"
 #include "FirstFPS_MapWidget.h"
+#include "FirstFPS_ReloadInfoWidget.h"
 #include "GameFramework/HUD.h"
 #include "MyFPS/FirstFPS_Character.h"
 #include "FirstFPS_HUD.generated.h"
@@ -21,7 +22,7 @@ protected:
 	// Called when the game starts or when spawned
 
 	virtual void BeginPlay() override;
-
+	virtual void Tick(float DeltaSeconds) override;
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UUserWidget> HealthWidgetClass;
 	UPROPERTY(VisibleInstanceOnly)
@@ -40,6 +41,12 @@ protected:
 	TSubclassOf<UUserWidget> MapWidgetClass;
 	UPROPERTY()
 	UFirstFPS_MapWidget* MapWidget;
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UUserWidget> ReloadWidgetClass;
+	UPROPERTY()
+	UFirstFPS_ReloadInfoWidget* ReloadWidget;
+	bool ReloadInViewport;
+	
 	UPROPERTY()
 	AFirstFPS_Character* LCharacter;
 	UFUNCTION()
@@ -54,7 +61,10 @@ protected:
 	void CorrectAllAmmo(int32 AllAmmo);
 	UFUNCTION()
 	void SwitchVisibilityCheatWidget(bool bNVisibility);
+	UFUNCTION()
+	void VisibilityReloadWidget(bool bNVisibility);
 	void RebindCharacter(APawn* NewPawn);
+	void HiddenReloadInfo();
 
 public:
 };
